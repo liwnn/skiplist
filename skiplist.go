@@ -5,8 +5,8 @@ import (
 )
 
 const (
-	kMaxLevel = 12   // (1/p)^MaxLevel >= maxNode
-	kP        = 0.25 // Skiplist P = 1/4
+	DefaultMaxLevel = 32   // (1/p)^MaxLevel >= maxNode
+	DefaultP        = 0.25 // Skiplist P = 1/4
 
 	DefaultFreeListSize = 32
 )
@@ -70,6 +70,7 @@ func (f *FreeList) freeNode(n *node) (out bool) {
 // SkipList implemente "Skip Lists: A Probabilistic Alternative to Balanced Trees"
 type SkipList struct {
 	header   *node
+	maxLevel int
 	level    int // current max level
 	freelist *FreeList
 	length   int
@@ -77,11 +78,20 @@ type SkipList struct {
 
 // New creates a skip list
 func New() *SkipList {
+	return NewWithLevel(DefaultMaxLevel)
+}
+
+// NewWithLevel creates a skip list with the given max level
+func NewWithLevel(maxLevel int) *SkipList {
+	if maxLevel < 1 || maxLevel > DefaultMaxLevel {
+		panic("maxLevel must be between 1 and DefaultMaxLevel")
+	}
 	sl := &SkipList{
+		maxLevel: maxLevel,
 		level:    1,
 		freelist: NewFreeList(DefaultFreeListSize),
 		header: &node{
-			forward: make([]*node, kMaxLevel),
+			forward: make([]*node, maxLevel),
 		},
 	}
 	return sl
@@ -108,7 +118,8 @@ func (sl *SkipList) Insert(item Item) {
 	if item == nil {
 		panic("nil item being added to SkipList")
 	}
-	var prev = make([]*node, kMaxLevel)
+	var staticAlloc [DefaultMaxLevel]*node
+	var prev = staticAlloc[:sl.maxLevel]
 	x := sl.header
 	for i := sl.level - 1; i >= 0; i-- {
 		for x.forward[i] != nil && x.forward[i].item.Less(item) {
@@ -140,7 +151,8 @@ func (sl *SkipList) Insert(item Item) {
 
 // Delete remote an item equal to the passed in item. return true if success, else false.
 func (sl *SkipList) Delete(item Item) bool {
-	var prev = make([]*node, kMaxLevel)
+	var staticAlloc [DefaultMaxLevel]*node
+	var prev = staticAlloc[:sl.maxLevel]
 	x := sl.header
 	for i := sl.level - 1; i >= 0; i-- {
 		for x.forward[i] != nil && x.forward[i].item.Less(item) {
@@ -168,7 +180,7 @@ func (sl *SkipList) Delete(item Item) bool {
 
 func (sl *SkipList) randomLevel() int {
 	lvl := 1
-	for lvl < kMaxLevel && rand.Float64() < kP {
+	for lvl < sl.maxLevel && rand.Float64() < DefaultP {
 		lvl++
 	}
 	return lvl
