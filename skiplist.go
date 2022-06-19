@@ -2,6 +2,7 @@ package skiplist
 
 import (
 	"math/rand"
+	"time"
 )
 
 const (
@@ -74,6 +75,7 @@ type SkipList struct {
 	level    int // current max level
 	freelist *FreeList
 	length   int
+	random   *rand.Rand
 }
 
 // New creates a skip list
@@ -93,6 +95,7 @@ func NewWithLevel(maxLevel int) *SkipList {
 		header: &node{
 			forward: make([]*node, maxLevel),
 		},
+		random: rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 	return sl
 }
@@ -102,8 +105,8 @@ func (sl *SkipList) Search(key Item) Item {
 	x := sl.header
 	// loop : x→key < searchKey <= x→forward[i]→key
 	for i := sl.level - 1; i >= 0; i-- {
-		for x.forward[i] != nil && x.forward[i].item.Less(key) {
-			x = x.forward[i]
+		for y := x.forward[i]; y != nil && y.item.Less(key); y = x.forward[i] {
+			x = y
 		}
 	}
 	x = x.forward[0]
@@ -122,8 +125,8 @@ func (sl *SkipList) Insert(item Item) {
 	var prev = staticAlloc[:sl.maxLevel]
 	x := sl.header
 	for i := sl.level - 1; i >= 0; i-- {
-		for x.forward[i] != nil && x.forward[i].item.Less(item) {
-			x = x.forward[i]
+		for y := x.forward[i]; y != nil && y.item.Less(item); y = x.forward[i] {
+			x = y
 		}
 		prev[i] = x
 	}
@@ -142,8 +145,7 @@ func (sl *SkipList) Insert(item Item) {
 		x = sl.freelist.newNode(lvl)
 		x.item = item
 		for i := 0; i < lvl; i++ {
-			x.forward[i] = prev[i].forward[i]
-			prev[i].forward[i] = x
+			x.forward[i], prev[i].forward[i] = prev[i].forward[i], x
 		}
 		sl.length++
 	}
@@ -155,8 +157,8 @@ func (sl *SkipList) Delete(item Item) bool {
 	var prev = staticAlloc[:sl.maxLevel]
 	x := sl.header
 	for i := sl.level - 1; i >= 0; i-- {
-		for x.forward[i] != nil && x.forward[i].item.Less(item) {
-			x = x.forward[i]
+		for y := x.forward[i]; y != nil && y.item.Less(item); y = x.forward[i] {
+			x = y
 		}
 		prev[i] = x
 	}
@@ -180,7 +182,7 @@ func (sl *SkipList) Delete(item Item) bool {
 
 func (sl *SkipList) randomLevel() int {
 	lvl := 1
-	for lvl < sl.maxLevel && rand.Float64() < DefaultP {
+	for lvl < sl.maxLevel && sl.random.Float64() < DefaultP {
 		lvl++
 	}
 	return lvl
