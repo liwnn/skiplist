@@ -182,7 +182,7 @@ func (sl *SkipList) Delete(item Item) bool {
 
 func (sl *SkipList) randomLevel() int {
 	lvl := 1
-	for lvl < sl.maxLevel && sl.random.Float64() < DefaultP {
+	for lvl < sl.maxLevel && float32(sl.random.Uint32()&0xFFFF) < DefaultP*0xFFFF {
 		lvl++
 	}
 	return lvl
