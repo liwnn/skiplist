@@ -116,18 +116,60 @@ func TestIterator(t *testing.T) {
 
 func TestRange(t *testing.T) {
 	sl := New()
-	for _, v := range rang(10) {
-		sl.Insert(v)
+	{
+		rang := sl.NewRange(Int(1), Int(10))
+		rang.ForEach(func(item Item) {
+			t.Fatal("range should be empty")
+		})
 	}
 
-	var got = make([]Item, 0, 10)
-	rang := sl.NewRange(Int(1), Int(3))
-	rang.ForEach(func(item Item) {
-		got = append(got, item)
-	})
-	var want = []Item{Int(1), Int(2), Int(3)}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("got %v, want %v", got, want)
+	// 1 3 5 7 9
+	for i := 1; i < 10; i += 2 {
+		sl.Insert(Int(i))
+	}
+
+	{
+		rang := sl.NewRange(Int(3), Int(1))
+		rang.ForEach(func(item Item) {
+			t.Fatal("range should be empty")
+		})
+	}
+
+	{
+		var got = make([]Item, 0, 10)
+		rang := sl.NewRange(Int(0), Int(10))
+		rang.ForEach(func(item Item) {
+			got = append(got, item)
+		})
+		want := []Item{Int(1), Int(3), Int(5), Int(7), Int(9)}
+
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("got %v, want %v", got, want)
+		}
+	}
+
+	{
+		var got = make([]Item, 0, 10)
+		rang := sl.NewRange(Int(1), Int(3))
+		rang.ForEach(func(item Item) {
+			got = append(got, item)
+		})
+		var want = []Item{Int(1), Int(3)}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("got %v, want %v", got, want)
+		}
+	}
+
+	{
+		var got = make([]Item, 0, 10)
+		rang := sl.NewRange(Int(0), Int(2))
+		rang.ForEach(func(item Item) {
+			got = append(got, item)
+		})
+		var want = []Item{Int(1)}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("got %v, want %v", got, want)
+		}
 	}
 }
 

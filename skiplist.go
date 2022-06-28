@@ -201,17 +201,29 @@ func (sl *SkipList) NewIterator() *Iterator {
 }
 
 func (sl *SkipList) NewRange(begin, end Item) *Range {
-	if end.Less(begin) {
-		return nil
+	minNode := sl.header.forward[0]
+	if minNode == nil || end.Less(begin) {
+		return &Range{}
 	}
-	nbegin := sl.search(begin)
+
+	beginNode := sl.search(begin)
+	if beginNode == nil && begin.Less(minNode.item) {
+		beginNode = minNode
+	}
+
 	nend := sl.search(end)
-	if nbegin == nil || nend == nil {
-		return nil
+	if nend == nil {
+		if end.Less(minNode.item) {
+			nend = minNode
+		}
+	} else {
+		if !end.Less(nend.item) {
+			nend = nend.forward[0]
+		}
 	}
 	return &Range{
 		sl:    sl,
-		begin: nbegin,
+		begin: beginNode,
 		end:   nend,
 	}
 }
@@ -243,12 +255,8 @@ type Range struct {
 }
 
 func (r *Range) ForEach(f func(item Item)) {
-	for x := r.begin; ; x = x.forward[0] {
+	for x := r.begin; x != r.end; x = x.forward[0] {
 		f(x.item)
-		if x == r.end {
-			break
-		}
-		r.begin = r.begin.forward[0]
 	}
 }
 
