@@ -246,7 +246,7 @@ type Range struct {
 	begin, end *node
 }
 
-func (r *Range) ForEach(f func(item Item) bool) {
+func (r *Range) ForEach(f func(item Item)) {
 	for x := r.begin; ; x = x.forward[0] {
 		f(x.item)
 		if x == r.end {
