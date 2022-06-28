@@ -102,11 +102,11 @@ func NewWithLevel(maxLevel int) *SkipList {
 
 // Search for an element by traversing forward pointers
 func (sl *SkipList) Search(key Item) Item {
-	n := sl.search(key)
-	if n == nil {
-		return nil
+	x := sl.search(key)
+	if x != nil && !key.Less(x.item) {
+		return x.item
 	}
-	return n.item
+	return nil
 }
 
 func (sl *SkipList) search(key Item) *node {
@@ -117,11 +117,7 @@ func (sl *SkipList) search(key Item) *node {
 			x = y
 		}
 	}
-	x = x.forward[0]
-	if x != nil && !key.Less(x.item) {
-		return x
-	}
-	return nil
+	return x.forward[0]
 }
 
 // Insert adds the given item to the skip list.
