@@ -91,17 +91,41 @@ func ExampleSkipList() {
 }
 
 func TestIterator(t *testing.T) {
-	list := New()
+	sl := New()
 	for _, v := range perm(100) {
-		list.Insert(v)
+		sl.Insert(v)
 	}
 
 	var got = make([]Item, 0, 100)
-	for it := list.NewIterator(); it.Valid(); it.Next() {
+	for it := sl.NewIterator(); it.Valid(); it.Next() {
 		got = append(got, it.Value())
 	}
 
 	if want := rang(100); !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+
+	{
+		it := sl.NewIterator()
+		it.MoveTo(Int(20))
+		if !it.Valid() || it.Value() != Int(20) {
+			t.Fatal("iterator didn't move to 100")
+		}
+	}
+}
+
+func TestRange(t *testing.T) {
+	sl := New()
+	for _, v := range rang(10) {
+		sl.Insert(v)
+	}
+
+	var got = make([]Item, 0, 10)
+	for rang := sl.NewRange(Int(1), Int(3)); !rang.End(); rang.Next() {
+		got = append(got, rang.Value())
+	}
+	var want = []Item{Int(1), Int(2), Int(3)}
+	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %v, want %v", got, want)
 	}
 }

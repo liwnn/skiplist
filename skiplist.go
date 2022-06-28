@@ -102,6 +102,14 @@ func NewWithLevel(maxLevel int) *SkipList {
 
 // Search for an element by traversing forward pointers
 func (sl *SkipList) Search(key Item) Item {
+	n := sl.search(key)
+	if n == nil {
+		return nil
+	}
+	return n.item
+}
+
+func (sl *SkipList) search(key Item) *node {
 	x := sl.header
 	// loop : x→key < searchKey <= x→forward[i]→key
 	for i := sl.level - 1; i >= 0; i-- {
@@ -111,7 +119,7 @@ func (sl *SkipList) Search(key Item) Item {
 	}
 	x = x.forward[0]
 	if x != nil && !key.Less(x.item) {
-		return x.item
+		return x
 	}
 	return nil
 }
@@ -196,6 +204,14 @@ func (sl *SkipList) NewIterator() *Iterator {
 	return &Iterator{sl: sl, x: sl.header.forward[0]}
 }
 
+func (sl *SkipList) NewRange(begin, end Item) *Range {
+	return &Range{
+		sl:    sl,
+		begin: sl.search(begin),
+		end:   sl.search(end),
+	}
+}
+
 type Iterator struct {
 	sl *SkipList
 	x  *node
@@ -211,6 +227,35 @@ func (it *Iterator) Next() {
 
 func (it *Iterator) Value() Item {
 	return it.x.item
+}
+
+func (it *Iterator) MoveTo(item Item) {
+	it.x = it.sl.search(item)
+}
+
+type Range struct {
+	sl         *SkipList
+	begin, end *node
+	over       bool
+}
+
+func (r *Range) End() bool {
+	return r.over
+}
+
+func (r *Range) Next() {
+	if r.begin == r.end {
+		r.over = true
+		return
+	}
+	r.begin = r.begin.forward[0]
+}
+
+func (r *Range) Value() Item {
+	if r.over {
+		return nil
+	}
+	return r.begin.item
 }
 
 type Int int
