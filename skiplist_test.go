@@ -121,9 +121,11 @@ func TestRange(t *testing.T) {
 	}
 
 	var got = make([]Item, 0, 10)
-	for rang := sl.NewRange(Int(1), Int(3)); !rang.End(); rang.Next() {
-		got = append(got, rang.Value())
-	}
+	rang := sl.NewRange(Int(1), Int(3))
+	rang.ForEach(func(item Item) bool {
+		got = append(got, item)
+		return true
+	})
 	var want = []Item{Int(1), Int(2), Int(3)}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %v, want %v", got, want)
