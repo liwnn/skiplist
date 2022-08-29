@@ -34,18 +34,17 @@ func NewFreeList(size int) *FreeList {
 	return &FreeList{freelist: make([]*node, 0, size)}
 }
 
-func (f *FreeList) newNode(lvl int) (n *node) {
+func (f *FreeList) newNode(lvl int32) (n *node) {
 	index := len(f.freelist) - 1
 	if index < 0 {
-		n = new(node)
-		n.forward = make([]*node, lvl)
+		n = &node{forward: make([]*node, lvl)}
 		return
 	}
 	n = f.freelist[index]
 	f.freelist[index] = nil
 	f.freelist = f.freelist[:index]
 
-	if cap(n.forward) < lvl {
+	if cap(n.forward) < int(lvl) {
 		n.forward = make([]*node, lvl)
 	} else {
 		n.forward = n.forward[:lvl]
@@ -54,14 +53,14 @@ func (f *FreeList) newNode(lvl int) (n *node) {
 }
 
 func (f *FreeList) freeNode(n *node) (out bool) {
-	// for gc
-	n.item = nil
-	toClear := n.forward
-	for len(toClear) > 0 {
-		toClear = toClear[copy(toClear, nilNodes):]
-	}
-
 	if len(f.freelist) < cap(f.freelist) {
+		// for gc
+		n.item = nil
+		toClear := n.forward
+		for len(toClear) > 0 {
+			toClear = toClear[copy(toClear, nilNodes):]
+		}
+
 		f.freelist = append(f.freelist, n)
 		out = true
 	}
@@ -71,8 +70,8 @@ func (f *FreeList) freeNode(n *node) (out bool) {
 // SkipList implemente "Skip Lists: A Probabilistic Alternative to Balanced Trees"
 type SkipList struct {
 	header   *node
-	maxLevel int
-	level    int // current max level
+	maxLevel int32
+	level    int32 // current max level
 	freelist *FreeList
 	length   int
 	random   *rand.Rand
@@ -84,11 +83,11 @@ func New() *SkipList {
 }
 
 // NewWithLevel creates a skip list with the given max level
-func NewWithLevel(maxLevel int) *SkipList {
+func NewWithLevel(maxLevel int32) *SkipList {
 	if maxLevel < 1 || maxLevel > DefaultMaxLevel {
 		panic("maxLevel must be between 1 and DefaultMaxLevel")
 	}
-	sl := &SkipList{
+	return &SkipList{
 		maxLevel: maxLevel,
 		level:    1,
 		freelist: NewFreeList(DefaultFreeListSize),
@@ -97,19 +96,25 @@ func NewWithLevel(maxLevel int) *SkipList {
 		},
 		random: rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
-	return sl
 }
 
 // Search for an element by traversing forward pointers
 func (sl *SkipList) Search(key Item) Item {
-	x := sl.search(key)
-	if x != nil && !key.Less(x.item) {
+	x := sl.header
+	// loop : x→key < searchKey <= x→forward[i]→key
+	for i := sl.level - 1; i >= 0; i-- {
+		for y := x.forward[i]; y != nil && y.item.Less(key); y = x.forward[i] {
+			x = y
+		}
+	}
+
+	if x = x.forward[0]; x != nil && !key.Less(x.item) {
 		return x.item
 	}
 	return nil
 }
 
-func (sl *SkipList) search(key Item) *node {
+func (sl *SkipList) searchNode(key Item) *node {
 	x := sl.header
 	// loop : x→key < searchKey <= x→forward[i]→key
 	for i := sl.level - 1; i >= 0; i-- {
@@ -148,7 +153,7 @@ func (sl *SkipList) Insert(item Item) {
 
 		x = sl.freelist.newNode(lvl)
 		x.item = item
-		for i := 0; i < lvl; i++ {
+		for i := int32(0); i < lvl; i++ {
 			x.forward[i], prev[i].forward[i] = prev[i].forward[i], x
 		}
 		sl.length++
@@ -168,7 +173,7 @@ func (sl *SkipList) Delete(item Item) bool {
 	}
 	x = x.forward[0]
 	if x != nil && !item.Less(x.item) {
-		for i := 0; i < sl.level; i++ {
+		for i := int32(0); i < sl.level; i++ {
 			if prev[i].forward[i] != x {
 				break
 			}
@@ -184,8 +189,8 @@ func (sl *SkipList) Delete(item Item) bool {
 	return false
 }
 
-func (sl *SkipList) randomLevel() int {
-	lvl := 1
+func (sl *SkipList) randomLevel() int32 {
+	lvl := int32(1)
 	for lvl < sl.maxLevel && float32(sl.random.Uint32()&0xFFFF) < DefaultP*0xFFFF {
 		lvl++
 	}
@@ -206,12 +211,12 @@ func (sl *SkipList) NewRange(begin, end Item) *Range {
 		return &Range{}
 	}
 
-	beginNode := sl.search(begin)
+	beginNode := sl.searchNode(begin)
 	if beginNode == nil && begin.Less(minNode.item) {
 		beginNode = minNode
 	}
 
-	nend := sl.search(end)
+	nend := sl.searchNode(end)
 	if nend == nil {
 		if end.Less(minNode.item) {
 			nend = minNode
@@ -246,7 +251,7 @@ func (it *Iterator) Value() Item {
 }
 
 func (it *Iterator) MoveTo(item Item) {
-	it.x = it.sl.search(item)
+	it.x = it.sl.searchNode(item)
 }
 
 type Range struct {
